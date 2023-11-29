@@ -22,5 +22,10 @@ if (isset($_GET["service"])) {
         case "EndAuction" :
             $auction -> EndAuction();
             break;
+        case "FetchCompletedAuctions":
+            $auction->FetchCompletedAuctions();
+            break;
+        case "FetchEngagingAuctions":
+            $auction->FetchEngagingAuctions();
     }
 }

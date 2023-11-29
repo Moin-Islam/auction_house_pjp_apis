@@ -22,5 +22,9 @@ if (isset($_GET["service"])) {
         case "CancelUserBid":
             $bid->CancelUserBid();
             break;
+        case "FetchOngoingBid":
+            $bid->FetchOngoingBid();
+            break;
+        
     }
 }

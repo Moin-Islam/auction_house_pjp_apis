@@ -73,17 +73,30 @@ class Bid
                 while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
                     extract($row);
 
+                    $bidder_specific_id = $bidder_id;
+                    $bidder_name_query = "SELECT username FROM users where user_id = :bidder_id";
+                    $bidder_name_stmt = $this->conn->prepare($bidder_name_query);
+                    $bidder_name_stmt->bindParam(":bidder_id", $bidder_specific_id);
+                    $bidder_name_stmt->execute();
+                    $bidder_name_row = $bidder_name_stmt->fetch(PDO::FETCH_ASSOC);
+                    $bidder_name = $bidder_name_row["username"];
+
                     $bid_list = [
                         "bid_id" => $bid_id,
+                        "bidder_name" => $bidder_name,
                         "auction_id" => $auction_id,
                         "bidder_id" => $bidder_id,
                         "bid_amount" => $bid_amount,
-                        "bid_timestamp" => $bid_timestamp
+                        "bid_timestamp" => $bid_timestamp,
+                        "Total Bid Placed" => $num
                     ];
                     array_push($bid_arr["records"], $bid_list);
                 }
                 http_response_code(200);
-                echo json_encode($bid_arr);
+                echo json_encode([
+                    $bid_arr,
+                    "total_bid_placed" => $num
+                ]);
             } else {
                 http_response_code(405);
                 echo json_encode([
@@ -110,7 +123,7 @@ class Bid
 
         $stmt->bindParam(":auction_id", $this->auction_id);
 
-        try{
+        try {
             $stmt->execute();
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             /*print_r ($row);
@@ -120,10 +133,9 @@ class Bid
             http_response_code(200);
             echo json_encode([
                 "message" => "Succesfully fetched the Highest bid",
-                "highest bid" => $this->bid_amount
+                "highest_bid" => $this->bid_amount
             ]);
-        } catch (e)
-        {
+        } catch (e) {
             http_response_code(200);
             echo json_encode([
                 "message" => "Unable to fetch the highest bid"
@@ -147,18 +159,70 @@ class Bid
         $stmt->bindParam(":auction_id", $this->auction_id);
         $stmt->bindParam(":bidder_id", $this->bidder_id);
 
-        try{
+        try {
             $stmt->execute();
             http_response_code(200);
             echo json_encode([
                 "message" => "Succesfully deleted the bid for the user",
             ]);
-        } catch(e)
-        {
+        } catch (e) {
             http_response_code(401);
             echo json_encode([
                 "message" => "Unable to delete the bid for the user, check connection",
             ]);
         }
     }
+
+    public function FetchOngoingBid()
+    {
+        $data = json_decode(file_get_contents("php://input"));
+        if (!empty($data->auction_id)) {
+            $this->auction_id = $data->auction_id;
+        }
+
+        $query = "SELECT * FROM $this->table_name WHERE auction_id=:auction_id ORDER BY bid_timestamp DESC LIMIT 1";
+        $stmt = $this->conn->prepare($query);
+
+        $stmt->bindParam(":auction_id", $this->auction_id);
+
+        try {
+            $stmt->execute();
+            $num = $stmt->rowCount();
+            if ($num > 0) {
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                $this->bid_id = $row["bid_id"];
+                $this->bidder_id = $row["bidder_id"];
+                $this->bid_amount = $row["bid_amount"];
+                $this->bid_timestamp = $row["bid_timestamp"];
+
+                if ($this->bid_id != null) {
+                    $bid_arr = [
+                        "bid_id" => $this->bid_id,
+                        "bidder_id" => $this->bidder_id,
+                        "bid_amount" => $this->bid_amount,
+                        "bid_timestamp" => $this->bid_timestamp,
+                    ];
+
+                    http_response_code(200);
+                    echo json_encode($bid_arr);
+                } else {
+                    http_response_code(400);
+                    echo json_encode([
+                        "message" => "Unable to Fetch the latest bid"
+                    ]);
+                }
+            } else {
+                http_response_code(402);
+                echo json_encode([
+                    "message" => "Still No Bid Placed"
+                ]);
+            }
+        } catch (e) {
+            http_response_code(401);
+            echo json_encode([
+                "message" => "Invalid Auction, Unable to fetch any bid"
+            ]);
+        }
+    }
+
 }

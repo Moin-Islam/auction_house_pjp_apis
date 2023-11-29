@@ -140,7 +140,9 @@ class Auction
 
         if (!empty($data->auction_id)) {
             $this->auction_id = $data->auction_id;
+            
         }
+        
 
         $query = "SELECT * FROM $this->table_name WHERE auction_id = :auction_id";
         $stmt = $this->conn->prepare($query);
@@ -211,14 +213,13 @@ class Auction
 
         $stmt->bindParam(":auction_id", $this->auction_id);
 
-        try{
+        try {
             $stmt->execute();
             http_response_code(200);
             echo json_encode([
                 "message" => "Successfully canceled the auction"
             ]);
-        } catch (e)
-        {
+        } catch (e) {
             http_response_code(400);
             echo json_encode([
                 "message" => "Unable to cancel the auction check your connection"
@@ -226,4 +227,77 @@ class Auction
         }
     }
 
+    public function FetchCompletedAuctions()
+    {
+        $query = "SELECT * FROM $this->table_name WHERE is_active=0";
+        $stmt = $this->conn->prepare($query);
+
+        try {
+            $stmt->execute();
+            $num = $stmt->rowcount();
+            if ($num > 0) {
+                $auction_arr = [];
+                $auction_arr["records"] = array();
+
+                while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                    extract($row);
+
+                    $auction_list = [
+                        "auction_id" => $auction_id,
+                        "seller_id" => $seller_id,
+                        "item_name" => $item_name,
+                        "item_description" => $item_description,
+                        "item_image" => $item_image,
+                        "category" => $category,
+                        "starting_price" => $starting_price,
+                        "reserve_price" => $reserve_price,
+                        "end_date" => $end_date,
+                        "current_bid" => $current_bid,
+                        "is_active" => $is_active,
+                        "created_at" => $created_at
+                    ];
+                    array_push($auction_arr["records"], $auction_list);
+                }
+                http_response_code(200);
+                echo json_encode($auction_arr);
+            } else {
+                http_response_code(405);
+                echo json_encode([
+                    "message" => "Found no completed auctions"
+                ]);
+            }
+        } catch (e) {
+            http_response_code(405);
+            echo json_encode([
+                "message" => "Invalid Connection"
+            ]);
+        }
+    }
+
+    public function FetchEngagingAuctions()
+    {
+        $query = "SELECT DISTINCT auction_id, (SELECT COUNT(*) FROM bids WHERE bids.auction_id = auctions.auction_id)
+            AS bid_count FROM auctions ORDER BY bid_count DESC";
+
+        $stmt = $this->conn->prepare($query);
+
+        try {
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $this->auction_id = $row["auction_id"];
+            $BidCount = $row["bid_count"];
+
+            http_response_code(200);
+            echo json_encode([
+                "message" => "Succcessfully fetched the most engaging auctions",
+                "auction_id" => $this->auction_id,
+                "bid_count" => $BidCount
+            ]);
+        } catch (e) {
+            http_response_code(405);
+            echo json_encode([
+                "message" => "Invalid Connection"
+            ]);
+        }
+    }
 }

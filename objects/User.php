@@ -91,11 +91,13 @@ class User
             if ($row > 0) {
                 $fetchQuery = $stmt->fetch(PDO::FETCH_ASSOC);
                 $storedPassword = $fetchQuery["password"];
+                $userId = $fetchQuery["user_id"];
                 if ($this->password == $storedPassword) {
                     http_response_code(200);
                     echo json_encode([
                         "message" => "Successful Login",
                         "code" => 200,
+                        "user_id" => $userId
                     ]);
                 } else {
                     http_response_code(400);
